@@ -1,8 +1,45 @@
+# Environment variables (NEVER commit your API key!)
 .env
+
+# Python cache
 __pycache__/
 *.pyc
-.vscode/
-*.docx
-test_*.py
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment (codec)
 codec/
 venv/
+env/
+ENV/
+
+# VSCode settings
+.vscode/
+
+# Test files
+test_*.py
+
+# Output files
+*.docx
+*.xlsx
+*.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
