@@ -1,23 +1,22 @@
 # Agent Framework
-langgraph==0.2.27
-langchain==0.2.16
-langchain-core==0.2.39
-langchain-groq==0.2.0
+langgraph
+langchain
+langchain-groq
 
 # Groq API
-groq==0.11.0
+groq
 
 # Code Parsing
-tree-sitter==0.21.3
-tree-sitter-languages==1.10.2
+tree-sitter
+tree-sitter-languages
 
-# Web Framework (we'll use later)
-fastapi==0.111.0
-uvicorn[standard]==0.30.1
+# Web Framework
+fastapi
+uvicorn[standard]
 
 # Data handling
-pydantic==2.7.4
-python-dotenv==1.0.1
+pydantic
+python-dotenv
 
 # Testing
-pytest==8.2.2
+pytest
