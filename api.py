@@ -6,8 +6,10 @@ Provides HTTP endpoints for the code conversion service.
 
 Endpoints:
 - POST /convert - Convert code
+- POST /convert/file - Convert code from uploaded file
 - GET /health - Health check
 - GET /languages - List supported languages
+- GET /stats - Conversion statistics from Elasticsearch
 """
 
 from fastapi import FastAPI, HTTPException, File, UploadFile
@@ -18,10 +20,11 @@ import uvicorn
 import time
 
 from workflow import convert_with_workflow
+from elasticsearch_logger import get_logger
 
-# ============================================================================
+# ============================================================================ 
 # FASTAPI APP
-# ============================================================================
+# ============================================================================ 
 
 app = FastAPI(
     title="Code Converter API",
@@ -38,9 +41,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================================================
+# ============================================================================ 
 # REQUEST/RESPONSE MODELS
-# ============================================================================
+# ============================================================================ 
 
 class ConversionRequest(BaseModel):
     """Request model for code conversion"""
@@ -84,9 +87,9 @@ class LanguagesResponse(BaseModel):
     target_languages: list[str]
 
 
-# ============================================================================
+# ============================================================================ 
 # ENDPOINTS
-# ============================================================================
+# ============================================================================ 
 
 @app.get("/", tags=["General"])
 async def root():
@@ -118,25 +121,30 @@ async def get_languages():
     )
 
 
+@app.get("/stats", tags=["Monitoring"])
+async def get_stats(hours: int = 24):
+    """
+    Get conversion statistics from Elasticsearch.
+    
+    Args:
+        hours: Number of hours to look back (default: 24)
+        
+    Returns:
+        Statistics including total conversions, success rate, etc.
+    """
+    logger = get_logger()
+    stats = logger.get_stats(hours=hours)
+    return stats
+
+
 @app.post("/convert", response_model=ConversionResponse, tags=["Conversion"])
 async def convert_code(request: ConversionRequest):
     """
-    Convert code from source language to target language.
-    
-    This endpoint runs the complete multi-agent workflow:
-    1. Parser Agent analyzes code structure
-    2. Intent Extractor identifies developer goals
-    3. Validator checks intention quality (with retry loop)
-    4. Code Generator creates idiomatic target code
-    
-    Args:
-        request: ConversionRequest with source code and languages
-        
-    Returns:
-        ConversionResponse with generated code and metadata
+    Convert code from source language to target language using the multi-agent workflow.
+    Logs conversions to Elasticsearch.
     """
-    
     start_time = time.time()
+    logger = get_logger()
     
     try:
         # Validate input
@@ -154,34 +162,50 @@ async def convert_code(request: ConversionRequest):
             max_iterations=request.max_iterations
         )
         
-        if not result:
-            raise HTTPException(status_code=500, detail="Conversion workflow failed")
-        
         processing_time = time.time() - start_time
         
-        # Build response
-        return ConversionResponse(
-            success=True,
-            generated_code=result.get("generated_code", ""),
-            intent_graph=result.get("intent_graph", {}),
-            validation_result=result.get("validation_result", {}),
-            iterations=result.get("iteration_count", 0),
-            processing_time=processing_time,
-            error_message=result.get("error_message")
-        )
+        if result:
+            # Log successful conversion
+            logger.log_conversion(
+                source_lang=request.source_language,
+                target_lang=request.target_language,
+                status="success",
+                duration=processing_time,
+                iterations=result.get("iteration_count", 0),
+                code_length=len(result.get("generated_code", ""))
+            )
+            
+            return ConversionResponse(
+                success=True,
+                generated_code=result.get("generated_code", ""),
+                intent_graph=result.get("intent_graph", {}),
+                validation_result=result.get("validation_result", {}),
+                iterations=result.get("iteration_count", 0),
+                processing_time=processing_time,
+                error_message=result.get("error_message")
+            )
+        else:
+            raise HTTPException(status_code=500, detail="Conversion workflow failed")
         
     except HTTPException:
         raise
     except Exception as e:
         processing_time = time.time() - start_time
+        # Log failed conversion
+        logger.log_conversion(
+            source_lang=request.source_language,
+            target_lang=request.target_language,
+            status="failed",
+            duration=processing_time
+        )
+        logger.log_error(
+            error_type="api_error",
+            message=str(e)
+        )
         return ConversionResponse(
             success=False,
-            generated_code=None,
-            intent_graph=None,
-            validation_result=None,
-            iterations=0,
-            processing_time=processing_time,
-            error_message=str(e)
+            error_message=str(e),
+            processing_time=processing_time
         )
 
 
@@ -193,16 +217,7 @@ async def convert_file(
 ):
     """
     Convert code from uploaded file.
-    
-    Args:
-        file: Source code file
-        target_language: Target programming language
-        max_iterations: Maximum retry attempts
-        
-    Returns:
-        ConversionResponse with generated code
     """
-    
     try:
         # Read file
         content = await file.read()
@@ -234,9 +249,9 @@ async def convert_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ============================================================================
+# ============================================================================ 
 # RUN SERVER
-# ============================================================================
+# ============================================================================ 
 
 if __name__ == "__main__":
     print("="*70)
