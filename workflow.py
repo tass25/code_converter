@@ -1,7 +1,8 @@
-"""
-LANGGRAPH WORKFLOW - Complete Agent Orchestration 🔄
-=====================================================
+# ============================================================================ 
+# LANGGRAPH WORKFLOW - Complete Agent Orchestration 🔄
+# ============================================================================
 
+"""
 This connects all agents together with proper state management
 and feedback loops for quality control.
 
@@ -12,7 +13,8 @@ Flow:
 """
 
 import os
-from typing import TypedDict, Annotated
+import time
+from typing import TypedDict
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
 
@@ -21,11 +23,13 @@ from intent_extractor import IntentExtractorAgent
 from validator_agent import ValidatorAgent
 from code_generator import CodeGeneratorAgent
 
+from elasticsearch_logger import get_logger
+
 load_dotenv()
 
-# ============================================================================
+# ============================================================================ 
 # STATE DEFINITION
-# ============================================================================
+# ============================================================================ 
 
 class ConversionState(TypedDict):
     """
@@ -51,9 +55,9 @@ class ConversionState(TypedDict):
     error_message: str
 
 
-# ============================================================================
+# ============================================================================ 
 # AGENT NODE FUNCTIONS
-# ============================================================================
+# ============================================================================ 
 
 def parse_node(state: ConversionState) -> ConversionState:
     """Node 1: Parse source code"""
@@ -121,9 +125,9 @@ def generate_node(state: ConversionState) -> ConversionState:
     return state
 
 
-# ============================================================================
+# ============================================================================ 
 # CONDITIONAL ROUTING
-# ============================================================================
+# ============================================================================ 
 
 def should_retry(state: ConversionState) -> str:
     """
@@ -157,9 +161,9 @@ def should_retry(state: ConversionState) -> str:
         return "generate"
 
 
-# ============================================================================
+# ============================================================================ 
 # BUILD THE WORKFLOW
-# ============================================================================
+# ============================================================================ 
 
 def create_workflow():
     """
@@ -199,13 +203,13 @@ def create_workflow():
     return workflow.compile()
 
 
-# ============================================================================
-# MAIN CONVERSION FUNCTION
-# ============================================================================
+# ============================================================================ 
+# MAIN CONVERSION FUNCTION WITH ELASTICSEARCH LOGGING
+# ============================================================================ 
 
 def convert_with_workflow(source_code, source_lang="R", target_lang="Python", max_iterations=3):
     """
-    Convert code using the complete LangGraph workflow.
+    Convert code using the complete LangGraph workflow with Elasticsearch logging.
     
     Args:
         source_code (str): Source code to convert
@@ -216,6 +220,9 @@ def convert_with_workflow(source_code, source_lang="R", target_lang="Python", ma
     Returns:
         dict: Final state with generated code
     """
+    
+    logger = get_logger()
+    start_time = time.time()
     
     print("="*70)
     print(f"🚀 STARTING WORKFLOW: {source_lang} → {target_lang}")
@@ -241,6 +248,21 @@ def convert_with_workflow(source_code, source_lang="R", target_lang="Python", ma
     
     try:
         final_state = app.invoke(initial_state)
+        duration = time.time() - start_time
+        
+        # Log successful conversion
+        logger.log_conversion(
+            source_lang=source_lang,
+            target_lang=target_lang,
+            status="success",
+            duration=duration,
+            iterations=final_state.get('iteration_count', 0),
+            code_length=len(final_state.get('generated_code', '')),
+            metadata={
+                "intent_count": len(final_state.get('intent_graph', {}).get('intents', [])),
+                "validation_passed": final_state.get('validation_result', {}).get('valid', False)
+            }
+        )
         
         print("\n" + "="*70)
         print("✅ WORKFLOW COMPLETE!")
@@ -252,15 +274,31 @@ def convert_with_workflow(source_code, source_lang="R", target_lang="Python", ma
         return final_state
         
     except Exception as e:
+        duration = time.time() - start_time
+        
+        # Log failed conversion
+        logger.log_conversion(
+            source_lang=source_lang,
+            target_lang=target_lang,
+            status="failed",
+            duration=duration
+        )
+        
+        logger.log_error(
+            error_type="workflow_error",
+            message=str(e),
+            context={"source_lang": source_lang, "target_lang": target_lang}
+        )
+        
         print(f"\n❌ ERROR in workflow: {e}")
         import traceback
         traceback.print_exc()
         return None
 
 
-# ============================================================================
+# ============================================================================ 
 # TEST THE COMPLETE WORKFLOW
-# ============================================================================
+# ============================================================================ 
 
 if __name__ == "__main__":
     test_code = """

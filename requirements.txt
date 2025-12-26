@@ -20,3 +20,5 @@ python-dotenv
 
 # Testing
 pytest
+# Elasticsearch
+elasticsearch==8.11.0
