@@ -79,7 +79,7 @@ The system extracts developer **intentions** in a language-agnostic format, then
 
 ## 📊 Real-Time Dashboard
 
-![Dashboard Screenshot](./dashboard.png)
+![Dashboard Screenshot](./assets/dashboard.png)
 
 Monitor your conversions in real-time:
 - ✅ Total conversions and success rate
