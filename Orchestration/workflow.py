@@ -18,10 +18,10 @@ from typing import TypedDict
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
 
-from parser_agent import ParserAgent
-from intent_extractor import IntentExtractorAgent
-from validator_agent import ValidatorAgent
-from code_generator import CodeGeneratorAgent
+from CoreAgents.parser_agent import ParserAgent
+from CoreAgents.intent_extractor import IntentExtractorAgent
+from CoreAgents.validator_agent import ValidatorAgent
+from CoreAgents.code_generator import CodeGeneratorAgent
 
 from Monitoring.elasticsearch_logger import get_logger
 
