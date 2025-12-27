@@ -20,7 +20,7 @@ import uvicorn
 import time
 
 from Orchestration.workflow import convert_with_workflow
-from elasticsearch_logger import get_logger
+from Monitoring.elasticsearch_logger import get_logger
 
 # ============================================================================ 
 # FASTAPI APP

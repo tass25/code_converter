@@ -23,7 +23,7 @@ from intent_extractor import IntentExtractorAgent
 from validator_agent import ValidatorAgent
 from code_generator import CodeGeneratorAgent
 
-from elasticsearch_logger import get_logger
+from Monitoring.elasticsearch_logger import get_logger
 
 load_dotenv()
 
